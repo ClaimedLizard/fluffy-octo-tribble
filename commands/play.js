@@ -103,7 +103,7 @@ const playyoutube = (url, options) => {
         // Send a Currently Playing message to the channel
         const replyEmbed = new MessageEmbed()
             .setTitle(infojson.title)
-            .setAuthor('Now playing:')
+            .setAuthor({ name:'Now Playing:' })
             .setURL(url)
             .setThumbnail(infojson.thumbnail)
             .setColor('C4820F')
@@ -120,11 +120,11 @@ const playyoutube = (url, options) => {
 
                 if (updatedProgressBar != replyEmbed.description) {
                     replyEmbed.setDescription(updatedProgressBar);
-                    if (currPlayingMessage.deleted) {
-                        break;
-                    }
-                    else {
+                    try {
                         currPlayingMessage.edit({ embeds: [replyEmbed] });
+                    }
+                    catch {
+                        break;
                     }
                 }
             }
@@ -138,9 +138,12 @@ const playyoutube = (url, options) => {
         else {
             replyEmbed.setDescription('Playback completed.');
         }
-        replyEmbed.setAuthor('Finished playing:');
-        if (!currPlayingMessage.deleted) {
+        replyEmbed.setAuthor({ name:'Finished playing:' });
+        try {
             currPlayingMessage.edit({ embeds: [replyEmbed] });
+        }
+        catch {
+            console.log('Tried to edit deleted message.');
         }
     });
 
@@ -289,7 +292,7 @@ module.exports = {
 
             // If input is not a url, then treat it as a search query
             if (url.indexOf('youtube.com') == -1 && url.indexOf('youtu.be' == -1)) {
-                await interaction.reply({ embeds: [new MessageEmbed().setAuthor('Grabbing video info...')] });
+                await interaction.reply({ embeds: [new MessageEmbed().setAuthor({ name:'Grabbing video info...' })] });
                 const getvidurl = spawn(`youtube-dl --cookies cookies.txt --get-id ytsearch1:"${url}"`, { shell: true, cwd: cacheDir });
                 let vidurl;
 
@@ -323,12 +326,12 @@ module.exports = {
 
                         // If there were no prior requests, skip the current song.
                         if (!requestflag) {
-                            replyEmbed.setAuthor('Now playing:');
+                            replyEmbed.setAuthor({ name:'Now playing:' });
                             await interaction.editReply({ embeds: [replyEmbed] });
                             sharedPlayer.stop();
                         }
                         else {
-                            replyEmbed.setAuthor('Added to queue:');
+                            replyEmbed.setAuthor({ name:'Added to queue:' });
                             await interaction.editReply({ embeds: [replyEmbed] });
                         }
 
@@ -369,7 +372,7 @@ module.exports = {
                 });
             }
             else {
-                await interaction.reply({ embeds: [new MessageEmbed().setAuthor('Grabbing video info...')] });
+                await interaction.reply({ embeds: [new MessageEmbed().setAuthor({ name:'Grabbing video info...' })] });
 
                 const vidinfo = spawn(`youtube-dl --dump-json --skip-download --cookies cookies.txt ${url}`, { shell: true, cwd: cacheDir });
                 requestqueue.push(url);
@@ -396,12 +399,12 @@ module.exports = {
 
                     // If there were no prior requests, skip the current song.
                     if (!requestflag) {
-                        replyEmbed.setAuthor('Now playing:');
+                        replyEmbed.setAuthor({ name:'Now playing:' });
                         await interaction.editReply({ embeds: [replyEmbed] });
                         sharedPlayer.stop();
                     }
                     else {
-                        replyEmbed.setAuthor('Added to queue:');
+                        replyEmbed.setAuthor({ name:'Added to queue:' });
                         await interaction.editReply({ embeds: [replyEmbed] });
                     }
                 });

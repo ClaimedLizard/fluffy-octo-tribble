@@ -7,6 +7,7 @@ const standard_input = process.stdin;
 
 standard_input.setEncoding('utf-8');
 
+// Echo words typed into the terminal to a discord channel
 standard_input.on('data', async (data) => {
     await client.channels.cache.get('234107814086180864').send(data);
 });
