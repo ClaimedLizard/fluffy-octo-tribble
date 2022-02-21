@@ -9,6 +9,8 @@ const { MessageEmbed } = require('discord.js');
 
 const sharedPlayer = createAudioPlayer();
 
+const { BOTSTUFFCHANNEL } = require('../config.json');
+
 // Initialize the list of cached songs to play
 const cacheDir = path.resolve('./cache');
 let songDir = path.join(cacheDir, 'Chinois');
@@ -23,7 +25,6 @@ let requestflag = false; // Will be true if the current song playing is a reques
 let skipflag = false; // Will be true if user requested to skip the current song
 let messageskipflag = false; // Another skip flag for currPlayingMessage to reference
 
-// Define algorithm to shuffle an array
 const shuffleArray = (array) => {
     for (let i = array.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
@@ -109,10 +110,12 @@ const playyoutube = (url, options) => {
             .setColor('C4820F')
             .setDescription('`' + createProgressBar(currTime, parseInt(infojson.duration), 59) + '`');
 
-        await client.channels.cache.get('636257429927100440').send({ embeds: [replyEmbed] }).then((message) => {
+        // Bind currPlayingMessage variable to the message we just sent
+        await client.channels.cache.get(BOTSTUFFCHANNEL).send({ embeds: [replyEmbed] }).then((message) => {
             currPlayingMessage = message;
         });
 
+        // Constantly update the progress bar in currPlayingMessage
         while (!messageskipflag && (parseInt(infojson.duration) - currTime) > 0) {
             if (sharedPlayer.state.status == AudioPlayerStatus.Playing) {
                 const updatedProgressBar = '`' + createProgressBar(currTime, parseInt(infojson.duration), 59) + '`';
@@ -143,7 +146,7 @@ const playyoutube = (url, options) => {
             currPlayingMessage.edit({ embeds: [replyEmbed] });
         }
         catch {
-            console.log('Tried to edit deleted message.');
+            console.log('Tried to edit a deleted message.');
         }
     });
 
@@ -268,6 +271,7 @@ module.exports = {
     skipflag: skipflag,
     messageskipflag: messageskipflag,
 
+    // Method to change the default playback playlist
     set playlist(listname) {
         songDir = path.join(cacheDir, listname);
         songNames = fs.readdirSync(path.join(cacheDir, listname)).filter((file) => { return file.endsWith('.opus'); });

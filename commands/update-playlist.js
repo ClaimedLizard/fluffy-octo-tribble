@@ -24,7 +24,7 @@ module.exports = {
         const updateLoop = (spawned) => {
             spawned.on('close', async (code) => {
                 if (code != 0) {
-                    console.log('ERROR OCCURRED. RESTARTING PROCESS.');
+                    console.log('\x1b[31m%s\x1b[0m', 'ERROR OCCURRED. RESTARTING PROCESS.');
                     await sleep(3000);
                     updateLoop(spawn(command, { cwd: workingDir, shell: true })); // Recursive call
                 }
