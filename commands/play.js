@@ -9,12 +9,14 @@ const { MessageEmbed } = require('discord.js');
 
 const sharedPlayer = createAudioPlayer();
 
+// The bot will post all activity messages in this channel
 const { BOTSTUFFCHANNEL } = require('../config.json');
 
 // Initialize the list of cached songs to play
 const cacheDir = path.resolve('./cache');
 let songDir = path.join(cacheDir, 'Chinois');
 let songNames = fs.readdirSync(songDir).filter((file) => { return file.endsWith('.opus'); });
+
 const requestqueue = []; // Queue for individual song requests. Will take precedence over playlistqueue
 let playlistqueue = []; // Queue for whole playlist requsts. Will take precedence over cached songs
 // let playlistTitle; // The name of the currently playing playlist
@@ -116,6 +118,7 @@ const playyoutube = (url, options) => {
         });
 
         // Constantly update the progress bar in currPlayingMessage
+        // As we update, if the message gets deleted, catch the error and log it in the console
         while (!messageskipflag && (parseInt(infojson.duration) - currTime) > 0) {
             if (sharedPlayer.state.status == AudioPlayerStatus.Playing) {
                 const updatedProgressBar = '`' + createProgressBar(currTime, parseInt(infojson.duration), 59) + '`';
@@ -123,17 +126,21 @@ const playyoutube = (url, options) => {
 
                 if (updatedProgressBar != replyEmbed.description) {
                     replyEmbed.setDescription(updatedProgressBar);
-                    try {
-                        currPlayingMessage.edit({ embeds: [replyEmbed] });
-                    }
-                    catch {
-                        break;
-                    }
+
+                    // Edit the currPlayingMessage with new progress bar
+                    // Catch the error that arises when the currPlayingMessage has been manually deleted and resend the message
+                    currPlayingMessage.edit({ embeds: [replyEmbed] }).catch(async () => {
+                        // Message has been deleted, resend it
+                        await client.channels.cache.get(BOTSTUFFCHANNEL).send({ embeds: [replyEmbed] }).then((message) => {
+                            currPlayingMessage = message;
+                        });
+                    });
                 }
             }
 
             await sleep(1000);
         }
+
         if (messageskipflag) {
             replyEmbed.setDescription('Song skipped.');
             messageskipflag = false;
@@ -141,13 +148,13 @@ const playyoutube = (url, options) => {
         else {
             replyEmbed.setDescription('Playback completed.');
         }
+
+        // Mark the song as completed playback successfully
         replyEmbed.setAuthor({ name:'Finished playing:' });
-        try {
-            currPlayingMessage.edit({ embeds: [replyEmbed] });
-        }
-        catch {
-            console.log('Tried to edit a deleted message.');
-        }
+        currPlayingMessage.edit({ embeds: [replyEmbed] }).catch(async () => {
+            // Message has been deleted, resend it
+            await client.channels.cache.get(BOTSTUFFCHANNEL).send({ embeds: [replyEmbed] });
+        });
     });
 
     ytdl.on('spawn', () => {
@@ -157,15 +164,13 @@ const playyoutube = (url, options) => {
     ytdl.on('close', async (code) => {
         if (code == 1 && !skipflag) { // A manual skip was not initiated. Treat it as an HTTP Error and retry
             console.log('Process closed unexpectedly. Retrying...');
-            if (currPlayingMessage) {
-                currPlayingMessage.delete().then((message) => {
-                    message.deleted = true;
-                });
+            if (currPlayingMessage) { // Check that message was already sent, and delete it
+                currPlayingMessage.delete();
             }
             else { // Wait for the message to be sent first, then delete
                 await sleep(1000);
-                currPlayingMessage.delete().then((message) => {
-                    message.deleted = true;
+                currPlayingMessage.delete().catch(() => {
+                    console.log('Message already deleted.');
                 });
             }
         }
@@ -305,16 +310,19 @@ module.exports = {
                 });
 
                 getvidurl.on('close', async () => {
-                    const buildvidinfo = [];
+                    const buildvidinfo = []; // The video info json string
                     const vidinfo = spawn(`youtube-dl --dump-json --skip-download --cookies cookies.txt ${vidurl}`, { shell: true, cwd: cacheDir });
                     requestqueue.push(vidurl);
 
+                    // Build video info json string
                     vidinfo.stdout.on('data', (data) => {
                         buildvidinfo.push(data.toString());
                     });
 
+                    // On finishing retrieval of video info, grab the description from the resulting json string
                     vidinfo.on('close', async () => {
                         const infojson = JSON.parse(buildvidinfo.join(''));
+
                         // Cut off at the first 10 lines of a description
                         let descriptionLines = infojson.description.split('\n');
                         if (descriptionLines.length > 10) {
@@ -334,6 +342,7 @@ module.exports = {
                             await interaction.editReply({ embeds: [replyEmbed] });
                             sharedPlayer.stop();
                         }
+                        // Else, queue up the requested song
                         else {
                             replyEmbed.setAuthor({ name:'Added to queue:' });
                             await interaction.editReply({ embeds: [replyEmbed] });
@@ -343,12 +352,13 @@ module.exports = {
                 });
             }
 
-            // The link is to a whole playlist
+            // Handle a link to a whole playlist
+            // In this case, we queue up every song in the playlist
             else if (url.indexOf('playlist') !== -1) {
                 const command = `youtube-dl -j --flat-playlist --cookies cookies.txt ${url}`;
                 const playlistinfo = spawn(command, { shell: true, cwd: cacheDir });
                 playlistqueue = []; // Empty the playlist queue
-                const jsonArray = [];
+                const jsonArray = []; // Array of json strings correlating to every song in the playlist
 
                 playlistinfo.stdout.on('data', (data) => {
                     jsonArray.push(data.toString());
@@ -370,11 +380,13 @@ module.exports = {
                     });
                     */
                     await interaction.reply('`Queued a playlist.`');
+                    // If current playing song is not a request, just skip it
                     if (!requestflag) {
                         sharedPlayer.stop();
                     }
                 });
             }
+            // Handle the case of a normal url
             else {
                 await interaction.reply({ embeds: [new MessageEmbed().setAuthor({ name:'Grabbing video info...' })] });
 
@@ -388,7 +400,7 @@ module.exports = {
 
                 vidinfo.on('close', async () => {
                     const infojson = JSON.parse(buildvidinfo.join(''));
-                    // Cut off at the first 10 lines of a description
+                    // Cut off the description at the first 10 lines of a description
                     let descriptionLines = infojson.description.split('\n');
                     if (descriptionLines.length > 10) {
                         descriptionLines = descriptionLines.slice(0, 10);
