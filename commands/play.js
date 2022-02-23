@@ -171,15 +171,12 @@ const playyoutube = (url, options) => {
         // That way, if it ended due to an error, it will be queued up again
         if (code == 1 && !skipflag) { // A manual skip was not initiated. Treat it as an HTTP Error and retry
             console.log('Process closed unexpectedly. Retrying...');
-            if (currPlayingMessage) { // Check that message was already sent, and delete it
-                currPlayingMessage.delete();
+            while (!currPlayingMessage) { // Wait for the currPlayingMessage to be sent first
+                await sleep(250);
             }
-            else { // Wait for the message to be sent first, then delete
-                await sleep(1000);
-                currPlayingMessage.delete().catch(() => {
-                    console.log('Message already deleted.');
-                });
-            }
+            currPlayingMessage.delete().catch(() => {
+                console.log('Message already deleted.');
+            });
             console.log('Currently Playing message deleted.');
         }
 
@@ -189,6 +186,8 @@ const playyoutube = (url, options) => {
             console.log(`Closed with code: \x1b[31m${code}\x1b[0m`);
             skipflag = false;
         }
+
+        // Song completed playback successfully. Tell the player to pop it off the queue
         else {
             console.log(`Closed with code: \x1b[31m${code}\x1b[0m`);
             sharedPlayer.emit('pop');
