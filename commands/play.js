@@ -287,8 +287,10 @@ module.exports = {
         songDir = path.join(cacheDir, listname);
         songNames = fs.readdirSync(path.join(cacheDir, listname)).filter((file) => { return file.endsWith('.opus') || file.endsWith('.webm'); });
         index = 0;
+        shuffleArray(songNames);
         if (!requestflag) {
-            sharedPlayer.stop();
+            // Go ahead and skip the current song if it's not a user song request
+            sharedPlayer.emit('skip');
         }
     },
 
