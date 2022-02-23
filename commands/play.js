@@ -25,7 +25,6 @@ let currRequest = ''; // Is the url string of the song request currently playing
 let index = 0; // Index of the current song playing
 let requestflag = false; // Will be true if the current song playing is a request
 let skipflag = false; // Will be true if user requested to skip the current song
-let messageskipflag = false; // Another skip flag for currPlayingMessage to reference
 
 const shuffleArray = (array) => {
     for (let i = array.length - 1; i > 0; i--) {
@@ -125,10 +124,10 @@ const playyoutube = (url, options) => {
 
         // Constantly update the progress bar in currPlayingMessage
         // This loop will run approximately once every second
-        while (!messageskipflag && (parseInt(infojson.duration) - currTime) > 0) {
+        while (!skipflag && (parseInt(infojson.duration) - currTime) > 0) {
             if (sharedPlayer.state.status == AudioPlayerStatus.Playing) {
                 const updatedProgressBar = '`' + createProgressBar(currTime, parseInt(infojson.duration), 59) + '`';
-                currTime += 1;
+                currTime += 0.25;
 
                 // We only update the message if the new progress bar is different
                 if (updatedProgressBar != replyEmbed.description) {
@@ -142,12 +141,11 @@ const playyoutube = (url, options) => {
                     });
                 }
             }
-            await sleep(1000);
+            await sleep(250);
         }
 
-        if (messageskipflag) { // If the current song was manually skipped
+        if (skipflag) { // If the current song was manually skipped
             replyEmbed.setDescription('Song skipped.');
-            messageskipflag = false;
         }
         else {
             replyEmbed.setDescription('Playback completed.');
@@ -169,6 +167,7 @@ const playyoutube = (url, options) => {
         // We pop the currently playing song off of the queue only if it has successfully completed playback
         // or if a manual skip was initiated.
         // That way, if it ended due to an error, it will be queued up again
+
         if (code == 1 && !skipflag) { // A manual skip was not initiated. Treat it as an HTTP Error and retry
             console.log('Process closed unexpectedly. Retrying...');
             while (!currPlayingMessage) { // Wait for the currPlayingMessage to be sent first
@@ -184,7 +183,6 @@ const playyoutube = (url, options) => {
         // sharedPlayer.on('pop') event
         else if (code == 1) {
             console.log(`Closed with code: \x1b[31m${code}\x1b[0m`);
-            skipflag = false;
         }
 
         // Song completed playback successfully. Tell the player to pop it off the queue
@@ -209,9 +207,6 @@ const playcache = async () => {
     sharedPlayer.play(song);
     client.user.setActivity(songNames[index].substring(0, (songNames[index].length - 17)));
     index = (index + 1) % songNames.length;
-    await sleep(1000);
-    skipflag = false;
-    messageskipflag = false;
 };
 
 
@@ -243,11 +238,14 @@ sharedPlayer.on(AudioPlayerStatus.Idle, () => {
 
 sharedPlayer.on('skip', async () => {
     skipflag = true;
-    messageskipflag = true;
-    await sleep(500);
     sharedPlayer.emit('pop');
+
     await sleep(250);
     sharedPlayer.stop();
+    await sleep(250);
+
+    // Reset the flag
+    skipflag = false;
 });
 
 // Errors when the Youtube video has m4a audio instead of WebmOpus
@@ -278,9 +276,6 @@ module.exports = {
                 .setDescription('Youtube url or search query.')
                 .setRequired(true)),
     player: sharedPlayer,
-    playcache: playcache,
-    skipflag: skipflag,
-    messageskipflag: messageskipflag,
 
     // Method to change the default playback playlist
     set playlist(listname) {
@@ -326,6 +321,7 @@ module.exports = {
                     });
 
                     // On finishing retrieval of video info, grab the description from the resulting json string
+                    // Post a reply confirming the song has been added to queue
                     vidinfo.on('close', async () => {
                         const infojson = JSON.parse(buildvidinfo.join(''));
 
@@ -405,6 +401,7 @@ module.exports = {
                     buildvidinfo.push(data.toString());
                 });
 
+                // Post reply confirming the song has been added to the queue
                 vidinfo.on('close', async () => {
                     const infojson = JSON.parse(buildvidinfo.join(''));
                     // Cut off the description at the first 10 lines of a description
