@@ -46,8 +46,8 @@ const probeAndCreateResource = async (readableStream) => {
     return createAudioResource(stream, { inputType: type });
 };
 
+// Function to create a progress bar string out of characters
 const createProgressBar = (curr, total, length) => {
-    // Create a progress bar out of characters
     const out = [];
     const pointerIndex = Math.floor((curr / total) * length);
     for (let i = 0; i < length; i++) {
@@ -65,10 +65,15 @@ const createProgressBar = (curr, total, length) => {
 // options = { inputType: StreamType.Artibtrary } will pipe audio through ffmpeg
 const playyoutube = (url, options) => {
     // const urlId = url.split('watch?v=')[1];
-    const vidinfo = spawn(`youtube-dl --dump-json --skip-download --cookies cookies.txt ${url}`, { shell: true, cwd: cacheDir });
+
+    // Child process to grab video metadata
+    const vidInfo = spawn(`youtube-dl --dump-json --skip-download --cookies cookies.txt ${url}`, { shell: true, cwd: cacheDir });
+
+    // Child process to download audio from youtube video
     const ytdl = spawn(`youtube-dl -f 251/140 --cookies cookies.txt -o - ${url}`, { shell: true, cwd: cacheDir });
+
     let currPlayingMessage; // Message displaying the currently playing song
-    const buildvidinfo = [];
+    const buildVidInfo = []; // Array to be joined into a JSON string
 
     /*
     if (options && options.cacheLocal) {
@@ -76,12 +81,13 @@ const playyoutube = (url, options) => {
     }
     */
 
-    vidinfo.stdout.on('data', (data) => {
-        buildvidinfo.push(data.toString());
+    // Build the JSON string that contains video metadata
+    vidInfo.stdout.on('data', (data) => {
+        buildVidInfo.push(data.toString());
     });
 
-    vidinfo.on('close', async () => {
-        const infojson = JSON.parse(buildvidinfo.join(''));
+    vidInfo.on('close', async () => {
+        const infojson = JSON.parse(buildVidInfo.join(''));
         client.user.setActivity(infojson.title);
         let currTime = 0;
 
@@ -118,30 +124,28 @@ const playyoutube = (url, options) => {
         });
 
         // Constantly update the progress bar in currPlayingMessage
-        // As we update, if the message gets deleted, catch the error and log it in the console
+        // This loop will run approximately once every second
         while (!messageskipflag && (parseInt(infojson.duration) - currTime) > 0) {
             if (sharedPlayer.state.status == AudioPlayerStatus.Playing) {
                 const updatedProgressBar = '`' + createProgressBar(currTime, parseInt(infojson.duration), 59) + '`';
                 currTime += 1;
 
+                // We only update the message if the new progress bar is different
                 if (updatedProgressBar != replyEmbed.description) {
                     replyEmbed.setDescription(updatedProgressBar);
 
                     // Edit the currPlayingMessage with new progress bar
-                    // Catch the error that arises when the currPlayingMessage has been manually deleted and resend the message
+                    // Catch the error that arises when the currPlayingMessage has been manually deleted
                     currPlayingMessage.edit({ embeds: [replyEmbed] }).catch(async () => {
-                        // Message has been deleted, resend it
-                        await client.channels.cache.get(BOTSTUFFCHANNEL).send({ embeds: [replyEmbed] }).then((message) => {
-                            currPlayingMessage = message;
-                        });
+                        // Message has been deleted, do nothing and exit early
+                        return;
                     });
                 }
             }
-
             await sleep(1000);
         }
 
-        if (messageskipflag) {
+        if (messageskipflag) { // If the current song was manually skipped
             replyEmbed.setDescription('Song skipped.');
             messageskipflag = false;
         }
@@ -152,8 +156,8 @@ const playyoutube = (url, options) => {
         // Mark the song as completed playback successfully
         replyEmbed.setAuthor({ name:'Finished playing:' });
         currPlayingMessage.edit({ embeds: [replyEmbed] }).catch(async () => {
-            // Message has been deleted, resend it
-            await client.channels.cache.get(BOTSTUFFCHANNEL).send({ embeds: [replyEmbed] });
+            // Message has been deleted, do nothing and exit
+            return;
         });
     });
 
@@ -162,6 +166,9 @@ const playyoutube = (url, options) => {
     });
 
     ytdl.on('close', async (code) => {
+        // We pop the currently playing song off of the queue only if it has successfully completed playback
+        // or if a manual skip was initiated.
+        // That way, if it ended due to an error, it will be queued up again
         if (code == 1 && !skipflag) { // A manual skip was not initiated. Treat it as an HTTP Error and retry
             console.log('Process closed unexpectedly. Retrying...');
             if (currPlayingMessage) { // Check that message was already sent, and delete it
@@ -173,25 +180,18 @@ const playyoutube = (url, options) => {
                     console.log('Message already deleted.');
                 });
             }
+            console.log('Currently Playing message deleted.');
         }
-        else if (code == 1) { // A manual skip was initiaed
+
+        // A manual skip was initiated. Popping the song off the queue is handled by the
+        // sharedPlayer.on('pop') event
+        else if (code == 1) {
             console.log(`Closed with code: \x1b[31m${code}\x1b[0m`);
-            if (currRequest == requestqueue[0]) {
-                requestqueue.shift();
-            }
-            else if (currRequest == playlistqueue[0]) {
-                playlistqueue.shift();
-            }
             skipflag = false;
         }
         else {
             console.log(`Closed with code: \x1b[31m${code}\x1b[0m`);
-            if (currRequest == requestqueue[0]) {
-                requestqueue.shift();
-            }
-            else if (currRequest == playlistqueue[0]) {
-                playlistqueue.shift();
-            }
+            sharedPlayer.emit('pop');
         }
     });
 
@@ -215,9 +215,10 @@ const playcache = async () => {
     messageskipflag = false;
 };
 
-shuffleArray(songNames);
 
 // Player will begin playback of next song in queue upon finishing current song
+// Single song requests take precedence over playlist requests
+// Playlist requests take precedence over local cached songs
 sharedPlayer.on(AudioPlayerStatus.Idle, () => {
     // Shuffle the cache playlist upon loop-around
     if (index == 0 && songNames.length > 1) {
@@ -244,24 +245,30 @@ sharedPlayer.on(AudioPlayerStatus.Idle, () => {
 sharedPlayer.on('skip', async () => {
     skipflag = true;
     messageskipflag = true;
-    await sleep(1000);
-    if (currRequest == requestqueue[0]) {
-        requestqueue.shift();
-        sharedPlayer.stop();
-    }
-    else if (currRequest == playlistqueue[0]) {
-        playlistqueue.shift();
-        sharedPlayer.stop();
-    }
-    else {
-        sharedPlayer.stop();
-    }
+    await sleep(500);
+    sharedPlayer.emit('pop');
+    await sleep(250);
+    sharedPlayer.stop();
 });
 
 // Errors when the Youtube video has m4a audio instead of WebmOpus
 sharedPlayer.on('error', async () => {
+    // Call playyoutube with option to pipe through FFMPEG
     playyoutube(currRequest, { inputType: StreamType.Arbitrary });
 });
+
+// Tell the sharedPlayer to pop the current playing song off of its queue
+sharedPlayer.on('pop', async () => {
+    if (currRequest == requestqueue[0]) {
+        requestqueue.shift();
+    }
+    else if (currRequest == playlistqueue[0]) {
+        playlistqueue.shift();
+    }
+});
+
+// Begin playback with a shuffled playlist
+shuffleArray(songNames);
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -386,6 +393,7 @@ module.exports = {
                     }
                 });
             }
+
             // Handle the case of a normal url
             else {
                 await interaction.reply({ embeds: [new MessageEmbed().setAuthor({ name:'Grabbing video info...' })] });
