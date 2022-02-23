@@ -113,7 +113,7 @@ const playingMessage = async (url, options) => {
 
                     // Edit the currPlayingMessage with new progress bar
                     // Catch the error that arises when the currPlayingMessage has been manually deleted
-                    currPlayingMessage.edit({ embeds: [replyEmbed] }).catch(async () => {
+                    currPlayingMessage.edit({ embeds: [replyEmbed] }).catch(() => {
                         // Message has been deleted, do nothing and exit early
                         return;
                     });
@@ -132,14 +132,17 @@ const playingMessage = async (url, options) => {
 
         // Mark the song as completed playback successfully
         replyEmbed.setAuthor({ name:'Finished playing:' });
-        currPlayingMessage.edit({ embeds: [replyEmbed] }).catch(async () => {
+        currPlayingMessage.edit({ embeds: [replyEmbed] }).catch(() => {
             // Message has been deleted, do nothing and exit
             return;
         });
 
         // If the Now Playing message was marked for auto-deletion, delete it now
         if (options && options.delete) {
-            currPlayingMessage.delete();
+            currPlayingMessage.delete().catch(() => {
+                // Message has already been deleted, do nothing and exit
+                return;
+            });
         }
     });
 
