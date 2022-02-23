@@ -1,5 +1,6 @@
 const { SlashCommandBuilder } = require('@discordjs/builders');
 const { getVoiceConnection } = require('@discordjs/voice');
+const { player } = require('./play.js');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -12,6 +13,7 @@ module.exports = {
         }
         else {
             connection.destroy();
+            player.emit('skip'); // Mark the currently playing song as skipped
             interaction.client.user.setActivity('');
             await interaction.reply({ content: ':wave:' });
         }

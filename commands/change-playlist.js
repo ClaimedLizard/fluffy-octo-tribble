@@ -10,7 +10,8 @@ module.exports = {
                 .setDescription('Name of the playlist.')
                 .setRequired(true)
                 .addChoice('NotNicobox', 'NotNicobox')
-                .addChoice('Chinois', 'Chinois')),
+                .addChoice('Chinois', 'Chinois')
+                .addChoice('ToTheMoonLofi', 'ToTheMoonLofi')),
     async execute(interaction) {
         play.playlist = interaction.options.getString('name');
         play.clearPlaylistQueue(); // Clear the requested playlist

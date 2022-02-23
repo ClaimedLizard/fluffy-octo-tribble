@@ -15,14 +15,14 @@ const { BOTSTUFFCHANNEL } = require('../config.json');
 // Initialize the list of cached songs to play
 const cacheDir = path.resolve('./cache');
 let songDir = path.join(cacheDir, 'Chinois');
-let songNames = fs.readdirSync(songDir).filter((file) => { return file.endsWith('.opus'); });
+let songNames = fs.readdirSync(songDir).filter((file) => { return file.endsWith('.opus') || file.endsWith('.webm'); });
 
 const requestqueue = []; // Queue for individual song requests. Will take precedence over playlistqueue
 let playlistqueue = []; // Queue for whole playlist requsts. Will take precedence over cached songs
 // let playlistTitle; // The name of the currently playing playlist
 let currRequest = ''; // Is the url string of the song request currently playing.
 
-let index = 0; // Index of the current song playing
+let index = 0; // Index of the current song playing within the locally cached default playlist
 let requestflag = false; // Will be true if the current song playing is a request
 let skipflag = false; // Will be true if user requested to skip the current song
 
@@ -60,25 +60,15 @@ const createProgressBar = (curr, total, length) => {
     return out.join('');
 };
 
-// Begin playback of song from Youtube URL
-// options = { inputType: StreamType.Artibtrary } will pipe audio through ffmpeg
-const playyoutube = (url, options) => {
-    // const urlId = url.split('watch?v=')[1];
-
+// Method to grab video metadata from provided url and post it as a Now Playing message
+// Returns the Now Playing message object
+// Pass in { delete:true } into options to auto delete currPlayingMessage upon completion
+const playingMessage = async (url, options) => {
     // Child process to grab video metadata
     const vidInfo = spawn(`youtube-dl --dump-json --skip-download --cookies cookies.txt ${url}`, { shell: true, cwd: cacheDir });
 
-    // Child process to download audio from youtube video
-    const ytdl = spawn(`youtube-dl -f 251/140 --cookies cookies.txt -o - ${url}`, { shell: true, cwd: cacheDir });
-
     let currPlayingMessage; // Message displaying the currently playing song
     const buildVidInfo = []; // Array to be joined into a JSON string
-
-    /*
-    if (options && options.cacheLocal) {
-        spawn(`youtube-dl --dump-json --skip-download --cookies cookies.txt ${url} > ${urlId}.info.json`, { shell: true, cwd: cacheDir + `/${playlistTitle}` });
-    }
-    */
 
     // Build the JSON string that contains video metadata
     vidInfo.stdout.on('data', (data) => {
@@ -87,28 +77,15 @@ const playyoutube = (url, options) => {
 
     vidInfo.on('close', async () => {
         const infojson = JSON.parse(buildVidInfo.join(''));
+        let currTime = 0; // Durations in seconds that we have progressed through the current song
+        const barLength = 59; // Length in characters of the progress bar to be drawn
+        const songDuration = parseInt(infojson.duration); // Total duration in seconds of the current song
+        let filledProgressBlocks = 0; // The number of blocks we have filled in our progress bar so far
+
+        // Update the bot's discord status
         client.user.setActivity(infojson.title);
-        let currTime = 0;
 
-        /*
-        // Download the song as it is playing
-        if (options && options.cacheLocal) {
-            fs.access(`/${playlistTitle}`, fs.constants.F_OK, (err) => {
-                if (err) {
-                    fs.mkdir(`./cache/${playlistTitle}`, (err) => {
-                        if (err & err.errno != 17) throw err;
-                    });
-                }
-            });
-            ytdl.stdout.on('data', (data) => {
-                fs.appendFile(`./cache/${playlistTitle}/` + urlId, data, (err) => {
-                    if (err) throw err;
-                });
-            });
-        }
-        */
-
-        // Send a Currently Playing message to the channel
+        // Send a Now Playing message to the channel
         const replyEmbed = new MessageEmbed()
             .setTitle(infojson.title)
             .setAuthor({ name:'Now Playing:' })
@@ -122,16 +99,17 @@ const playyoutube = (url, options) => {
             currPlayingMessage = message;
         });
 
-        // Constantly update the progress bar in currPlayingMessage
-        // This loop will run approximately once every second
-        while (!skipflag && (parseInt(infojson.duration) - currTime) > 0) {
+        // Continuously update the progress bar in currPlayingMessage
+        // This loop will run approximately once every quarter-second
+        while (!skipflag && (songDuration - currTime) > 0) {
             if (sharedPlayer.state.status == AudioPlayerStatus.Playing) {
-                const updatedProgressBar = '`' + createProgressBar(currTime, parseInt(infojson.duration), 59) + '`';
-                currTime += 0.25;
+                // We only redraw the progress bar if there will be a visible change
+                const currProgressBlocks = Math.floor((currTime / songDuration) * barLength);
 
-                // We only update the message if the new progress bar is different
-                if (updatedProgressBar != replyEmbed.description) {
+                if (currProgressBlocks > filledProgressBlocks) {
+                    const updatedProgressBar = '`' + createProgressBar(currTime, songDuration, barLength) + '`';
                     replyEmbed.setDescription(updatedProgressBar);
+                    filledProgressBlocks = currProgressBlocks;
 
                     // Edit the currPlayingMessage with new progress bar
                     // Catch the error that arises when the currPlayingMessage has been manually deleted
@@ -140,6 +118,7 @@ const playyoutube = (url, options) => {
                         return;
                     });
                 }
+                currTime += 0.25;
             }
             await sleep(250);
         }
@@ -157,8 +136,26 @@ const playyoutube = (url, options) => {
             // Message has been deleted, do nothing and exit
             return;
         });
+
+        // If the Now Playing message was marked for auto-deletion, delete it now
+        if (options && options.delete) {
+            currPlayingMessage.delete();
+        }
     });
 
+    return currPlayingMessage;
+};
+
+// Begin playback of song from Youtube URL
+// options = { inputType: StreamType.Artibtrary } will pipe audio through ffmpeg
+const playyoutube = (url, options) => {
+    // const urlId = url.split('watch?v=')[1];
+
+    // Send the Now Playing Message
+    const currPlayingMessage = playingMessage(url, options);
+
+    // Child process to download audio from youtube video
+    const ytdl = spawn(`youtube-dl -f 251/140 --cookies cookies.txt -o - ${url}`, { shell: true, cwd: cacheDir });
     ytdl.on('spawn', () => {
         console.log('\x1b[34m%s\x1b[0m', 'Child process spawned.');
     });
@@ -176,7 +173,7 @@ const playyoutube = (url, options) => {
             currPlayingMessage.delete().catch(() => {
                 console.log('Message already deleted.');
             });
-            console.log('Currently Playing message deleted.');
+            console.log('Now Playing message deleted.');
         }
 
         // A manual skip was initiated. Popping the song off the queue is handled by the
@@ -202,10 +199,18 @@ const playyoutube = (url, options) => {
 
 // Play the next song in the cache playlist, and update the index
 const playcache = async () => {
+
+    // Send an auto-deleting Now Playing message to the chat
+    const youtubeIDRegex = /(\S{11}).[a-z]{3,}$/;
+    const vidID = songNames[index].match(youtubeIDRegex)[1];
+    playingMessage(`https://www.youtube.com/watch?v=${vidID}`, { delete:true });
+
     // probeAndCreateResource to play any kind of audio file
+    const songNameRegex = /^(.*)-\S{11}.[a-z]{3,}/;
     const song = await probeAndCreateResource(fs.createReadStream(path.join(songDir, songNames[index])));
     sharedPlayer.play(song);
-    client.user.setActivity(songNames[index].substring(0, (songNames[index].length - 17)));
+    client.user.setActivity(songNames[index].match(songNameRegex)[1]);
+    // client.user.setActivity(songNames[index].substring(0, (songNames[index].length - 17)));
     index = (index + 1) % songNames.length;
 };
 
@@ -280,7 +285,7 @@ module.exports = {
     // Method to change the default playback playlist
     set playlist(listname) {
         songDir = path.join(cacheDir, listname);
-        songNames = fs.readdirSync(path.join(cacheDir, listname)).filter((file) => { return file.endsWith('.opus'); });
+        songNames = fs.readdirSync(path.join(cacheDir, listname)).filter((file) => { return file.endsWith('.opus') || file.endsWith('.webm'); });
         index = 0;
         if (!requestflag) {
             sharedPlayer.stop();

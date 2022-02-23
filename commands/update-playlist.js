@@ -15,13 +15,20 @@ module.exports = {
                 .setDescription('Name of the playlist.')
                 .setRequired(true)
                 .addChoice('NotNicobox', 'NotNicobox')
-                .addChoice('Chinois', 'Chinois')),
+                .addChoice('Chinois', 'Chinois')
+                .addChoice('ToTheMoonLofi', 'ToTheMoonLofi')),
     async execute(interaction) {
-        const command = './update-playlist.sh';
+        const command = './update-playlist.sh'; // The specific shell command is specified in this .sh file
         const workingDir = path.join(path.resolve('./cache'), interaction.options.getString('name'));
 
         // Restart the update process upon an error
-        const updateLoop = (spawned) => {
+        const updateLoop = async (spawned) => {
+
+            spawned.stdout.on('data', async (data) => {
+                await sleep(1000);
+                console.log(data.toString());
+            });
+
             spawned.on('close', async (code) => {
                 if (code != 0) {
                     console.log('\x1b[31m%s\x1b[0m', 'ERROR OCCURRED. RESTARTING PROCESS.');
@@ -31,9 +38,7 @@ module.exports = {
                 else {
                     console.log(`Process exited with code: ${code}`);
                 }
-            });
-            spawned.stdout.on('data', (data) => {
-                console.log(data.toString());
+
             });
         };
 
