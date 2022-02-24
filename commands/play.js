@@ -375,7 +375,7 @@ module.exports = {
 
             // Handle a link to a whole playlist
             // In this case, we queue up every song in the playlist
-            else if (url.match(/playlist?list=/)) {
+            else if (url.match(/playlist\?list=/)) {
                 const command = `youtube-dl -j --flat-playlist --cookies cookies.txt ${url}`;
                 const playlistinfo = spawn(command, { shell: true, cwd: cacheDir });
                 playlistqueue = []; // Empty the playlist queue
