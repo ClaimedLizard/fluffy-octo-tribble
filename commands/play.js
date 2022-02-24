@@ -213,16 +213,15 @@ const playyoutube = (url, options) => {
 const playcache = async () => {
 
     // Send an auto-deleting Now Playing message to the chat
-    const youtubeIDRegex = /(\S{11}).[a-z]{3,}$/;
+    const youtubeIDRegex = /(\S{11})\.[a-z1-9]{3,}$/;
     const vidID = songNames[index].match(youtubeIDRegex)[1];
     playingMessage(`https://www.youtube.com/watch?v=${vidID}`, { delete:true });
 
     // probeAndCreateResource to play any kind of audio file
-    const songNameRegex = /^(.*)-\S{11}.[a-z]{3,}/;
+    const songNameRegex = /^(.*)-\S{11}\.[a-z1-9]{3,}/;
     const song = await probeAndCreateResource(fs.createReadStream(path.join(songDir, songNames[index])));
     sharedPlayer.play(song);
     client.user.setActivity(songNames[index].match(songNameRegex)[1]);
-    // client.user.setActivity(songNames[index].substring(0, (songNames[index].length - 17)));
     index = (index + 1) % songNames.length;
 };
 
@@ -317,11 +316,12 @@ module.exports = {
         }
         else {
             // Cut off the url at the ampersand
-            const url = interaction.options.getString('url').split('&')[0];
+            let url = interaction.options.getString('url');
 
             // If input is not a url, then treat it as a search query
-            if (url.indexOf('youtube.com') == -1 && url.indexOf('youtu.be' == -1)) {
+            if (!url.match(/youtube.com|youtu.be/)) {
                 await interaction.reply({ embeds: [new MessageEmbed().setAuthor({ name:'Grabbing video info...' })] });
+                // Use youtube-dl to perform a search of this query
                 const getvidurl = spawn(`youtube-dl --cookies cookies.txt --get-id ytsearch1:"${url}"`, { shell: true, cwd: cacheDir });
                 let vidurl;
 
@@ -375,7 +375,7 @@ module.exports = {
 
             // Handle a link to a whole playlist
             // In this case, we queue up every song in the playlist
-            else if (url.indexOf('playlist') !== -1) {
+            else if (url.match(/playlist?list=/)) {
                 const command = `youtube-dl -j --flat-playlist --cookies cookies.txt ${url}`;
                 const playlistinfo = spawn(command, { shell: true, cwd: cacheDir });
                 playlistqueue = []; // Empty the playlist queue
@@ -410,6 +410,7 @@ module.exports = {
 
             // Handle the case of a normal url
             else {
+                url = url.match(/^([^&]*)/)[1]; // Capture everything before the first ampersand
                 await interaction.reply({ embeds: [new MessageEmbed().setAuthor({ name:'Grabbing video info...' })] });
 
                 const vidinfo = spawn(`youtube-dl --dump-json --skip-download --cookies cookies.txt ${url}`, { shell: true, cwd: cacheDir });
