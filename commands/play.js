@@ -76,11 +76,20 @@ const playingMessage = async (url, options) => {
     });
 
     vidInfo.on('close', async () => {
-        const infojson = JSON.parse(buildVidInfo.join(''));
+        let infojson;
         let currTime = 0; // Durations in seconds that we have progressed through the current song
         const barLength = 59; // Length in characters of the progress bar to be drawn
-        const songDuration = parseInt(infojson.duration); // Total duration in seconds of the current song
+        let songDuration; // Total duration in seconds of the current song
         let filledProgressBlocks = 0; // The number of blocks we have filled in our progress bar so far
+
+        try { // Attempt to fetch metadata for the song from youtube
+            infojson = JSON.parse(buildVidInfo.join(''));
+            songDuration = parseInt(infojson.duration);
+        }
+        catch {
+            // Could not fetch metadata for video, likely because the original video has already been delisted from youtube
+            return;
+        }
 
         // Update the bot's discord status
         client.user.setActivity(infojson.title);
