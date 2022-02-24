@@ -140,7 +140,7 @@ const playingMessage = async (url, options) => {
         // If the Now Playing message was marked for auto-deletion, delete it now
         if (options && options.delete) {
             currPlayingMessage.delete().catch(() => {
-                // Message has already been deleted, do nothing and exit
+                // Message has been deleted, do nothing and exit
                 return;
             });
         }
@@ -154,7 +154,7 @@ const playingMessage = async (url, options) => {
 const playyoutube = (url, options) => {
     // const urlId = url.split('watch?v=')[1];
 
-    // Send the Now Playing Message
+    // Send the Now Playing message
     const currPlayingMessage = playingMessage(url, options);
 
     // Child process to download audio from youtube video
@@ -352,7 +352,7 @@ module.exports = {
                         if (!requestflag) {
                             replyEmbed.setAuthor({ name:'Now playing:' });
                             await interaction.editReply({ embeds: [replyEmbed] });
-                            sharedPlayer.stop();
+                            sharedPlayer.emit('skip');
                         }
                         // Else, queue up the requested song
                         else {
@@ -394,7 +394,7 @@ module.exports = {
                     await interaction.reply('`Queued a playlist.`');
                     // If current playing song is not a request, just skip it
                     if (!requestflag) {
-                        sharedPlayer.stop();
+                        sharedPlayer.emit('skip');
                     }
                 });
             }
@@ -431,7 +431,7 @@ module.exports = {
                     if (!requestflag) {
                         replyEmbed.setAuthor({ name:'Now playing:' });
                         await interaction.editReply({ embeds: [replyEmbed] });
-                        sharedPlayer.stop();
+                        sharedPlayer.emit('skip');
                     }
                     else {
                         replyEmbed.setAuthor({ name:'Added to queue:' });
