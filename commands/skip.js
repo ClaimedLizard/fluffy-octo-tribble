@@ -7,7 +7,7 @@ module.exports = {
         .setName('skip')
         .setDescription('Skip the playback of the current song.'),
     async execute(interaction) {
-        interaction.reply({ content: 'Skipping current song...' });
+        interaction.reply({ content: 'Skipping current song...', ephemeral: true });
         player.emit('skip');
     },
 };
