@@ -187,7 +187,6 @@ const playyoutube = (url, options) => {
             });
             console.log('Now Playing message deleted.');
         }
-
         // A manual skip was initiated. Popping the song off the queue is handled by the
         // sharedPlayer.on('pop') event
         else if (code == 1) {
@@ -265,8 +264,11 @@ sharedPlayer.on('skip', async () => {
 });
 
 // Errors when the Youtube video has m4a audio instead of WebmOpus
-sharedPlayer.on('error', async () => {
+sharedPlayer.on('error', async (err) => {
     // Call playyoutube with option to pipe through FFMPEG
+    console.log('PLAYER ERROR OCCURRED');
+    console.log(err.name);
+    console.log(err.message);
     playyoutube(currRequest, { inputType: StreamType.Arbitrary });
 });
 
