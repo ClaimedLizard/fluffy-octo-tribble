@@ -186,6 +186,7 @@ const playyoutube = (url, options) => {
             }
             await currPlayingMessage.delete().catch(() => {
                 console.log('Message already deleted.');
+                return;
             });
             console.log('Now Playing message deleted.');
         }
