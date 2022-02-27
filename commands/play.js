@@ -163,8 +163,10 @@ const playingMessage = async (url, options) => {
 const playyoutube = (url, options) => {
     // const urlId = url.split('watch?v=')[1];
 
+    // Initialize currPlayingMessage as null in an attempt to fix some edge case crashes
+    let currPlayingMessage = null;
     // Send the Now Playing message
-    const currPlayingMessage = playingMessage(url, options);
+    currPlayingMessage = playingMessage(url, options);
 
     // Child process to download audio from youtube video
     const ytdl = spawn(`youtube-dl -f 251/140 --cookies cookies.txt -o - ${url}`, { shell: true, cwd: cacheDir });
@@ -182,7 +184,7 @@ const playyoutube = (url, options) => {
             while (!currPlayingMessage) { // Wait for the currPlayingMessage to be sent first
                 await sleep(250);
             }
-            currPlayingMessage.delete().catch(() => {
+            await currPlayingMessage.delete().catch(() => {
                 console.log('Message already deleted.');
             });
             console.log('Now Playing message deleted.');

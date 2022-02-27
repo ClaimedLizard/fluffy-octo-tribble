@@ -19,13 +19,14 @@ module.exports = {
     data: new SlashCommandBuilder()
         .setName('summon')
         .setDescription('Summon the bot to the current voice channel.'),
+
     async execute(interaction) {
 
         const connection = joinVoiceChannel({
             channelId: interaction.member.voice.channelId,
             guildId: interaction.guildId,
             adapterCreator: interaction.guild.voiceAdapterCreator,
-            selfDeaf: false,
+            selfDeaf: true,
             selfMute: false,
         });
         await interaction.reply({ content :'Connected!' });
