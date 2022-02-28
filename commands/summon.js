@@ -3,17 +3,6 @@ const { joinVoiceChannel, AudioPlayerStatus } = require('@discordjs/voice');
 const play = require('./play.js');
 const { getChannel } = require('../client.js');
 
-/*
-const standard_input = process.stdin;
-
-standard_input.setEncoding('utf-8');
-
-
-// Echo words typed into the terminal to a discord channel
-standard_input.on('data', async (data) => {
-    await client.channels.cache.get('234107814086180864').send(data);
-});
-*/
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('summon')
@@ -21,11 +10,14 @@ module.exports = {
 
     async execute(interaction) {
         const channelId = getChannel(interaction.guildId);
+
+        // Check that user has already bound the bot to a channel within this guild
         if (!channelId) {
             await interaction.reply({ content:'Bind me to a channel first!', ephemeral:true });
             return;
         }
 
+        // Tell player to post music playback messages to the proper channel
         play.botChannel = channelId;
 
         const connection = joinVoiceChannel({

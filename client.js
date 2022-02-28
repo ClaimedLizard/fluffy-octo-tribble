@@ -1,5 +1,5 @@
 const { Client, Intents } = require('discord.js');
-const { token } = require('./config.json');
+const token = process.env['BOT_TOKEN']; // Grab bot token from the environment
 const fs = require('fs');
 
 const client = new Client({ intents: [Intents.FLAGS.GUILDS, Intents.FLAGS.GUILD_VOICE_STATES] });
