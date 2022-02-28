@@ -10,7 +10,7 @@ const { MessageEmbed } = require('discord.js');
 const sharedPlayer = createAudioPlayer();
 
 // The bot will post all activity messages in this channel
-const { BOTSTUFFCHANNEL } = require('../config.json');
+let botChannel = null;
 
 // Initialize the list of cached songs to play
 const cacheDir = path.resolve('./cache');
@@ -104,7 +104,7 @@ const playingMessage = async (url, options) => {
             .setDescription('`' + createProgressBar(currTime, parseInt(infojson.duration), 59) + '`');
 
         // Bind currPlayingMessage variable to the message we just sent
-        await client.channels.cache.get(BOTSTUFFCHANNEL).send({ embeds: [replyEmbed] }).then((message) => {
+        await client.channels.cache.get(botChannel).send({ embeds: [replyEmbed] }).then((message) => {
             currPlayingMessage = message;
         });
 
@@ -155,6 +155,10 @@ const playingMessage = async (url, options) => {
         }
     });
 
+    // Do not return until the message has been successfully sent
+    while (!currPlayingMessage) {
+        await sleep(100);
+    }
     return currPlayingMessage;
 };
 
@@ -163,10 +167,8 @@ const playingMessage = async (url, options) => {
 const playyoutube = (url, options) => {
     // const urlId = url.split('watch?v=')[1];
 
-    // Initialize currPlayingMessage as null in an attempt to fix some edge case crashes
-    let currPlayingMessage = null;
     // Send the Now Playing message
-    currPlayingMessage = playingMessage(url, options);
+    const currPlayingMessage = playingMessage(url, options);
 
     // Child process to download audio from youtube video
     const ytdl = spawn(`youtube-dl -f 251/140 --cookies cookies.txt -o - ${url}`, { shell: true, cwd: cacheDir });
@@ -181,9 +183,7 @@ const playyoutube = (url, options) => {
 
         if (code == 1 && !skipflag) { // A manual skip was not initiated. Treat it as an HTTP Error and retry
             console.log('Process closed unexpectedly. Retrying...');
-            while (!currPlayingMessage) { // Wait for the currPlayingMessage to be sent first
-                await sleep(250);
-            }
+
             await currPlayingMessage.delete().catch(() => {
                 console.log('Message already deleted.');
                 return;
@@ -310,11 +310,21 @@ module.exports = {
         }
     },
 
+    // Method to change the channel the bot is posting too
+    set botChannel(channelId) {
+        botChannel = channelId;
+    },
+
     clearPlaylistQueue: () => {
         playlistqueue = [];
     },
 
     async execute(interaction) {
+        // If the bot has not been summoned yet, return early
+        if (!botChannel) {
+            await interaction.reply({ content:'Summon me first!', ephemeral:true });
+            return;
+        }
         // Handle null edge case
         if (interaction.options.getString('url') == null) {
             await interaction.reply({ content: 'You forgot the URL!', ephemeral: true });

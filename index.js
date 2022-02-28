@@ -1,10 +1,9 @@
 // Require the necessary discord.js classes
 const fs = require('fs');
 const { Collection } = require('discord.js');
-const { token } = require('./config.json');
 // const { EventEmitter } = require('stream');
 
-// Create a new client instance
+// Create a new client instance and login to discord
 const { client } = require('./client.js');
 
 // Event Handling
@@ -48,6 +47,3 @@ client.on('interactionCreate', async interaction => {
         await interaction.reply({ content: 'There was an error while executing this command!', ephemeral: true });
     }
 });
-
-// Login to Discord with your client
-client.login(token);

@@ -1,7 +1,7 @@
 const { SlashCommandBuilder } = require('@discordjs/builders');
 const { joinVoiceChannel, AudioPlayerStatus } = require('@discordjs/voice');
-const { player } = require('./play.js');
-const { client } = require('../client.js');
+const play = require('./play.js');
+const { getChannel } = require('../client.js');
 
 /*
 const standard_input = process.stdin;
@@ -14,13 +14,19 @@ standard_input.on('data', async (data) => {
     await client.channels.cache.get('234107814086180864').send(data);
 });
 */
-
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('summon')
         .setDescription('Summon the bot to the current voice channel.'),
 
     async execute(interaction) {
+        const channelId = getChannel(interaction.guildId);
+        if (!channelId) {
+            await interaction.reply({ content:'Bind me to a channel first!', ephemeral:true });
+            return;
+        }
+
+        play.botChannel = channelId;
 
         const connection = joinVoiceChannel({
             channelId: interaction.member.voice.channelId,
@@ -31,7 +37,7 @@ module.exports = {
         });
         await interaction.reply({ content :'Connected!' });
 
-        const subscription = connection.subscribe(player); // Subscribe this connection to the shared player.
+        const subscription = connection.subscribe(play.player); // Subscribe this connection to the shared player.
 
         connection.on('stateChange', (oldState, newState) => {
             console.log('\x1b[33m%s\x1b[0m', `Connection transitioned from ${oldState.status} to ${newState.status}...`);
@@ -45,6 +51,6 @@ module.exports = {
             }
         });
 
-        player.emit(AudioPlayerStatus.Idle);
+        play.player.emit(AudioPlayerStatus.Idle);
     },
 };
