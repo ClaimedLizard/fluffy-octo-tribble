@@ -63,7 +63,7 @@ const createProgressBar = (curr, total, length) => {
 // Method to grab video metadata from provided url and post it as a Now Playing message
 // Returns the Now Playing message object
 // Pass in { delete:true } into options to auto delete currPlayingMessage upon completion
-const playingMessage = async (url, options) => {
+const playingMessage = (url, options) => {
     // Child process to grab video metadata
     const vidInfo = spawn(`youtube-dl --dump-json --skip-download --cookies cookies.txt ${url}`, { shell: true, cwd: cacheDir });
 
@@ -155,18 +155,12 @@ const playingMessage = async (url, options) => {
         }
     });
 
-    // Do not return until the message has been successfully sent
-    while (!currPlayingMessage) {
-        await sleep(100);
-    }
     return currPlayingMessage;
 };
 
 // Begin playback of song from Youtube URL
 // options = { inputType: StreamType.Artibtrary } will pipe audio through ffmpeg
 const playyoutube = (url, options) => {
-    // const urlId = url.split('watch?v=')[1];
-
     // Send the Now Playing message
     const currPlayingMessage = playingMessage(url, options);
 
@@ -183,6 +177,10 @@ const playyoutube = (url, options) => {
 
         if (code == 1 && !skipflag) { // A manual skip was not initiated. Treat it as an HTTP Error and retry
             console.log('Process closed unexpectedly. Retrying...');
+
+            while (!currPlayingMessage) {
+                await sleep(100);
+            }
 
             await currPlayingMessage.delete().catch(() => {
                 console.log('Message already deleted.');
