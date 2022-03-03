@@ -10,6 +10,7 @@ const { MessageEmbed } = require('discord.js');
 const sharedPlayer = createAudioPlayer();
 
 // The bot will post all activity messages in this channel
+// This is reset to null upon disconnect
 let botChannel = null;
 
 // Initialize the list of cached songs to play
@@ -61,7 +62,7 @@ const createProgressBar = (curr, total, length) => {
 };
 
 // Method to grab video metadata from provided url and post it as a Now Playing message
-// Returns the Now Playing message object
+// Returns the Now Playing message object. This method is synchronous
 // Pass in { delete:true } into options to auto delete currPlayingMessage upon completion
 const playingMessage = (url, options) => {
     // Child process to grab video metadata
@@ -178,14 +179,13 @@ const playyoutube = (url, options) => {
         if (code == 1 && !skipflag) { // A manual skip was not initiated. Treat it as an HTTP Error and retry
             console.log('Process closed unexpectedly. Retrying...');
 
-            while (!currPlayingMessage) {
-                await sleep(100);
+            if (currPlayingMessage) {
+                await currPlayingMessage.delete().catch(() => {
+                    console.log('Message already deleted.');
+                    return;
+                });
             }
 
-            await currPlayingMessage.delete().catch(() => {
-                console.log('Message already deleted.');
-                return;
-            });
             console.log('Now Playing message deleted.');
         }
         // A manual skip was initiated. Popping the song off the queue is handled by the
@@ -355,7 +355,14 @@ module.exports = {
                     // On finishing retrieval of video info, grab the description from the resulting json string
                     // Post a reply confirming the song has been added to queue
                     vidinfo.on('close', async () => {
-                        const infojson = JSON.parse(buildvidinfo.join(''));
+                        let infojson;
+                        try {
+                            infojson = JSON.parse(buildvidinfo.join(''));
+                        }
+                        catch { // On the event that a connection interruption results in a malformed JSON, exit early
+                            interaction.editReply({ content:'Attempted to parse malformed JSON' });
+                            return;
+                        }
 
                         // Cut off at the first 10 lines of a description
                         let descriptionLines = infojson.description.split('\n');
@@ -391,7 +398,6 @@ module.exports = {
             else if (url.match(/playlist\?list=/)) {
                 const command = `youtube-dl -j --flat-playlist --cookies cookies.txt ${url}`;
                 const playlistinfo = spawn(command, { shell: true, cwd: cacheDir });
-                playlistqueue = []; // Empty the playlist queue
                 const jsonArray = []; // Array of json strings correlating to every song in the playlist
 
                 playlistinfo.stdout.on('data', (data) => {
@@ -401,7 +407,15 @@ module.exports = {
                 playlistinfo.on('close', async () => {
                     for (let i = 0; i < jsonArray.length; i++) {
                         if (jsonArray[i].length > 0) {
-                            playlistqueue.push(`https://www.youtube.com/watch?v=${JSON.parse(jsonArray[i]).id}`);
+                            let songId;
+                            try {
+                                songId = JSON.parse(jsonArray[i]).id;
+                            }
+                            catch { // Exit early on attempt to parse malformed JSON
+                                await interaction.reply('`Attempted to parse malformed JSON. Try again.`');
+                                return;
+                            }
+                            playlistqueue.push(`https://www.youtube.com/watch?v=${songId}`);
                         }
                     }
 
@@ -436,7 +450,15 @@ module.exports = {
 
                 // Post reply confirming the song has been added to the queue
                 vidinfo.on('close', async () => {
-                    const infojson = JSON.parse(buildvidinfo.join(''));
+                    let infojson;
+                    try {
+                        infojson = JSON.parse(buildvidinfo.join(''));
+                    }
+                    catch { // Exit early on attempt to parse malformed JSON
+                        interaction.editReply({ content:'Attempted to parse malformed JSON' });
+                        return;
+                    }
+
                     // Cut off the description at the first 10 lines of a description
                     let descriptionLines = infojson.description.split('\n');
                     if (descriptionLines.length > 10) {
