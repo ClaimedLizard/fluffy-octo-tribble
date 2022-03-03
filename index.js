@@ -1,11 +1,12 @@
 // Require the necessary discord.js classes
 const fs = require('fs');
 const { Collection } = require('discord.js');
-const { authorizedRoleId, masterId } = require('./config.json'); // This bot only listens to users with a role matching the defined id
 const goodWords = ['I agree', 'You\'re the best', 'Wise words', 'You\'re so smart', 'Nice', 'Absolutely', 'Definitely', 'Exactly', 'You\'re right', 'I couldn\'t agree more', 'That\'s true', 'That\'s for sure'];
 
 // Create a new client instance and login to discord
 const { client } = require('./client.js');
+// Import method that determines if a given user is authorized to command this bot
+const isLegal = client.isLegal;
 
 // Event Handling
 const eventFiles = fs.readdirSync('./events').filter(file => file.endsWith('.js'));
@@ -31,11 +32,6 @@ for (const file of commandFiles) {
     client.commands.set(command.data.name, command);
 }
 
-// Define method that determines if a user is authorized to command this bot
-const isLegal = (guildMember) => {
-    return guildMember.roles.cache.has(authorizedRoleId) || guildMember.id == masterId;
-};
-
 // Define replies to commands
 client.on('interactionCreate', async interaction => {
     if (!interaction.isCommand()) return;
@@ -57,26 +53,5 @@ client.on('interactionCreate', async interaction => {
     catch (error) {
         console.error(error);
         await interaction.reply({ content: 'There was an error while executing this command!', ephemeral: true });
-    }
-});
-
-// Robocop
-client.on('messageCreate', (message) => {
-    // Express solidarity with other bots
-    if (message.author.bot && message.author.id != message.guild.me.id) {
-        message.react('🤖');
-    }
-    // Agree with wise words from wise men
-    if (isLegal(message.member) || message.author.id == masterId) {
-        const index = Math.floor(Math.random() * goodWords.length);
-        // Send the message, and then delete it after 5 seconds
-        message.channel.send(goodWords[index]).then((mes) => {
-            setTimeout(() => {
-                mes.delete().catch((err) => {
-                    console.log('Could not delete agreement message');
-                    console.log(err);
-                });
-            }, 5000);
-        });
     }
 });

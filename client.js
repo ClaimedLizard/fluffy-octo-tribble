@@ -1,6 +1,7 @@
 const { Client, Intents } = require('discord.js');
 const token = process.env['BOT_TOKEN']; // Grab bot token from the environment
 const fs = require('fs');
+const { authorizedRoleId, masterId } = require('./config.json'); // This bot only listens to users with a role matching the defined id
 
 const client = new Client({ intents: [Intents.FLAGS.GUILDS, Intents.FLAGS.GUILD_MEMBERS, Intents.FLAGS.GUILD_VOICE_STATES, Intents.FLAGS.GUILD_MESSAGES] });
 
@@ -55,9 +56,15 @@ const saveGuildToChannel = () => {
     }
 };
 
+// Define method that determines if a user is authorized to command this bot
+const isLegal = (guildMember) => {
+    return guildMember.roles.cache.has(authorizedRoleId) || guildMember.id == masterId;
+};
+
 module.exports = {
     client: client,
     getChannel: getChannel,
     setChannel: setChannel,
     saveGuildToChannel: saveGuildToChannel,
+    isLegal: isLegal,
 };
