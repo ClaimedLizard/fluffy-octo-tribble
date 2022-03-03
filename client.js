@@ -2,7 +2,7 @@ const { Client, Intents } = require('discord.js');
 const token = process.env['BOT_TOKEN']; // Grab bot token from the environment
 const fs = require('fs');
 
-const client = new Client({ intents: [Intents.FLAGS.GUILDS, Intents.FLAGS.GUILD_VOICE_STATES] });
+const client = new Client({ intents: [Intents.FLAGS.GUILDS, Intents.FLAGS.GUILD_MEMBERS, Intents.FLAGS.GUILD_VOICE_STATES, Intents.FLAGS.GUILD_MESSAGES] });
 
 // Login to discord with the bot token
 client.login(token);

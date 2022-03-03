@@ -25,8 +25,7 @@ module.exports = {
         const updateLoop = async (spawned) => {
 
             spawned.stdout.on('data', async (data) => {
-                await sleep(1000);
-                console.log(data.toString());
+                process.stdout.write('\r' + data.toString());
             });
 
             spawned.on('close', async (code) => {

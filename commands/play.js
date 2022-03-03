@@ -230,6 +230,9 @@ const playcache = async () => {
 // Single song requests take precedence over playlist requests
 // Playlist requests take precedence over local cached songs
 sharedPlayer.on(AudioPlayerStatus.Idle, () => {
+    // Wait a second before playing the next song
+    sleep(1000);
+
     // Shuffle the cache playlist upon loop-around
     if (index == 0 && songNames.length > 1) {
         shuffleArray(songNames);
