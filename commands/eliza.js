@@ -1,7 +1,7 @@
 const { SlashCommandBuilder } = require ('@discordjs/builders');
 const { client, isLegal } = require('../client.js');
 const Eliza = require('../eliza-as-promised');
-const eliza = new Eliza();
+let eliza; // The current instance of Eliza
 const goodWords = ['I agree', 'You\'re the best', 'Wise words', 'You\'re so smart', 'Nice', 'Absolutely', 'Definitely', 'Exactly', 'You\'re right', 'I couldn\'t agree more', 'That\'s true', 'That\'s for sure'];
 // If the doctor is in, then reply with eliza responses
 // If false, then reply with agreement messages
@@ -50,12 +50,14 @@ module.exports = {
         // Toggle the doctor on or off
         theDoctorIsIn = !theDoctorIsIn;
         if (theDoctorIsIn) {
+            eliza = new Eliza();
             await interaction.reply({ content:eliza.getInitial() });
         }
         else {
             eliza.getResponse('Bye').then(async (response) => {
                 await interaction.reply({ content:response.final });
             });
+            eliza = null;
         }
     },
 };
