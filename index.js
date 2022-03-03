@@ -69,6 +69,13 @@ client.on('messageCreate', (message) => {
     // Agree with wise words from wise men
     if (isLegal(message.member) || message.author.id == masterId) {
         const index = Math.floor(Math.random() * goodWords.length);
-        message.channel.send(goodWords[index]);
+        message.channel.send(goodWords[index]).then((m1) => {
+            setTimeout((m2) => {
+                m2.delete().catch((err) => {
+                    console.log('Could not delete agreement message');
+                    console.log(err);
+                });
+            }, 5000, m1);
+        });
     }
 });
