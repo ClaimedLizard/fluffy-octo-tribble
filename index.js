@@ -4,9 +4,8 @@ const { Collection } = require('discord.js');
 const goodWords = ['I agree', 'You\'re the best', 'Wise words', 'You\'re so smart', 'Nice', 'Absolutely', 'Definitely', 'Exactly', 'You\'re right', 'I couldn\'t agree more', 'That\'s true', 'That\'s for sure'];
 
 // Create a new client instance and login to discord
-const { client } = require('./client.js');
-// Import method that determines if a given user is authorized to command this bot
-const isLegal = client.isLegal;
+// Import method that determines if user is authorized to command this bot
+const { client, isLegal } = require('./client.js');
 
 // Event Handling
 const eventFiles = fs.readdirSync('./events').filter(file => file.endsWith('.js'));

@@ -1,6 +1,5 @@
 const { SlashCommandBuilder } = require ('@discordjs/builders');
-const { client } = require('../client.js');
-const isLegal = client.isLegal;
+const { client, isLegal } = require('../client.js');
 const Eliza = require('../eliza-as-promised');
 const eliza = new Eliza();
 const goodWords = ['I agree', 'You\'re the best', 'Wise words', 'You\'re so smart', 'Nice', 'Absolutely', 'Definitely', 'Exactly', 'You\'re right', 'I couldn\'t agree more', 'That\'s true', 'That\'s for sure'];
