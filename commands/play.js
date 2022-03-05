@@ -179,12 +179,12 @@ const playyoutube = (url, options) => {
         if (code == 1 && !skipflag) { // A manual skip was not initiated. Treat it as an HTTP Error and retry
             console.log('Process closed unexpectedly. Retrying...');
 
-            if (currPlayingMessage) {
-                await currPlayingMessage.delete().catch(() => {
-                    console.log('Message already deleted.');
-                    return;
-                });
+            while (!currPlayingMessage) {
+                await sleep(250);
             }
+            await currPlayingMessage.delete().catch(() => {
+                console.log('Message already deleted.');
+            });
 
             console.log('Now Playing message deleted.');
         }
