@@ -399,6 +399,7 @@ module.exports = {
             // Handle a link to a whole playlist
             // In this case, we queue up every song in the playlist
             else if (url.match(/playlist\?list=/)) {
+                // TODO: Rewrite this to download the html directly from youtube.com/feeds/videos.xml?playlist_id=
                 const command = `youtube-dl -j --flat-playlist --cookies cookies.txt ${url}`;
                 const playlistinfo = spawn(command, { shell: true, cwd: cacheDir });
                 const jsonArray = []; // Array of json strings correlating to every song in the playlist
