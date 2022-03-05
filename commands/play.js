@@ -5,7 +5,7 @@ const path = require('path');
 const { spawn } = require('child_process');
 const { client } = require('../client.js');
 const { MessageEmbed } = require('discord.js');
-// const jsdom = require('jsdom');
+const https = require('https');
 
 const sharedPlayer = createAudioPlayer();
 
@@ -399,10 +399,13 @@ module.exports = {
             // Handle a link to a whole playlist
             // In this case, we queue up every song in the playlist
             else if (url.match(/playlist\?list=/)) {
-                // TODO: Rewrite this to download the html directly from youtube.com/feeds/videos.xml?playlist_id=
+                // Extract the playlist id from the url https://www.youtube.com/feeds/videos.xml?playlist_id=
+                const jsonArray = []; // Array of json strings correlating to every song in the playlist
+                const playlistId = url.match(/list=(\S+)/)[1];
                 const command = `youtube-dl -j --flat-playlist --cookies cookies.txt ${url}`;
                 const playlistinfo = spawn(command, { shell: true, cwd: cacheDir });
-                const jsonArray = []; // Array of json strings correlating to every song in the playlist
+                // Use an https get request to pull the playlist title
+                const request = https.get(`https://www.youtube.com/feeds/videos.xml?playlist_id=${playlistId}`);
 
                 playlistinfo.stdout.on('data', (data) => {
                     jsonArray.push(data.toString());
@@ -422,23 +425,29 @@ module.exports = {
                             playlistqueue.push(`https://www.youtube.com/watch?v=${songId}`);
                         }
                     }
-
-                    /*
-                    // User agent so we fetch the correct HTML
-                    const rl = new jsdom.ResourceLoader({ userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/95.0.4638.69 Safari/537.36' });
-                    await jsdom.JSDOM.fromURL(url, { resources: rl }).then(async (dom) => {
-                        playlistTitle = await dom.window.document.body.querySelector('meta[property="og:title"]').content;
-                        await interaction.reply(`\`Queued the playlist: ${playlistTitle}\``);
-                    });
-                    */
-                    await interaction.reply('`Queued a playlist.`');
                     // If current playing song is not a request, just skip it
                     if (!requestflag) {
                         sharedPlayer.emit('skip');
                     }
                 });
-            }
 
+                request.on('response', async (response) => {
+                    response.setEncoding('utf8');
+                    let body = '';
+                    response.on('data', (data) => {
+                        body += data;
+                    });
+                    response.on('end', async () => {
+                        const playlistTitle = body.match(/<title>(.+)<\/title>/);
+                        if (playlistTitle) {
+                            await interaction.reply(`\`Queued the playlist: ${playlistTitle[1]}\``);
+                        }
+                        else {
+                            await interaction.reply('`Queued a playlist.`');
+                        }
+                    });
+                });
+            }
             // Handle the case of a normal url
             else {
                 url = url.match(/^([^&]*)/)[1]; // Capture everything before the first ampersand
