@@ -240,22 +240,23 @@ sharedPlayer.on(AudioPlayerStatus.Idle, () => {
     if (index == 0 && songNames.length > 1) {
         shuffleArray(songNames);
     }
-
+    // Get the correct next-song
     if (requestqueue.length > 0) {
         currRequest = requestqueue[0];
         playyoutube(requestqueue[0]);
         requestflag = true;
+        return;
     }
-    else if (playlistqueue.length > 0) {
+    if (playlistqueue.length > 0) {
         currRequest = playlistqueue[0];
         playyoutube(playlistqueue[0]);
         requestflag = true;
+        return;
     }
-    else {
-        currRequest = '';
-        playcache();
-        requestflag = false;
-    }
+    currRequest = '';
+    playcache();
+    requestflag = false;
+    return;
 });
 
 sharedPlayer.on('skip', async () => {
@@ -283,9 +284,11 @@ sharedPlayer.on('error', async (err) => {
 sharedPlayer.on('pop', async () => {
     if (currRequest == requestqueue[0]) {
         requestqueue.shift();
+        return;
     }
-    else if (currRequest == playlistqueue[0]) {
+    if (currRequest == playlistqueue[0]) {
         playlistqueue.shift();
+        return;
     }
 });
 
