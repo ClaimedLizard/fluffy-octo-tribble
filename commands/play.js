@@ -90,6 +90,7 @@ const playingMessage = async (url, options) => {
             }
             catch {
                 // Could not fetch metadata for video, likely because the original video has already been delisted from youtube
+                resolve(null);
                 return;
             }
 
@@ -184,7 +185,7 @@ const playyoutube = (url, options) => {
                 if (mes) {
                     await mes.delete().catch((err) => {
                         console.log(err);
-                        console.log('Message already deleted.');
+                        console.log('Error trying to delete message.');
                     });
                     console.log('Now Playing message deleted.');
                 }
