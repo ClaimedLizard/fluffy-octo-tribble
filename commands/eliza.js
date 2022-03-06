@@ -21,15 +21,16 @@ client.on('messageCreate', (message) => {
             if (response.reply) {
                 message.channel.send(response.reply);
             }
-            else if (response.final) {
+            if (response.final) {
                 message.channel.send(response.final);
                 // Turn the doctor off
                 theDoctorIsIn = false;
             }
         });
+        return;
     }
     // Agree with wise words from wise men
-    else if (isLegal(message.member)) {
+    if (isLegal(message.member)) {
         const index = Math.floor(Math.random() * goodWords.length);
         // Send the message, and then delete it after 5 seconds
         message.channel.send(goodWords[index]).then((mes) => {
@@ -40,6 +41,7 @@ client.on('messageCreate', (message) => {
                 });
             }, 5000);
         });
+        return;
     }
 });
 
@@ -57,8 +59,8 @@ module.exports = {
         else {
             eliza.getResponse('Bye').then(async (response) => {
                 await interaction.reply({ content:response.final });
+                eliza = null;
             });
-            eliza = null;
         }
     },
 };
