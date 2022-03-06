@@ -62,101 +62,102 @@ const createProgressBar = (curr, total, length) => {
 };
 
 // Method to grab video metadata from provided url and post it as a Now Playing message
-// Returns the Now Playing message object. This method is synchronous
+// Returns the Now Playing message object.
 // Pass in { delete:true } into options to auto delete currPlayingMessage upon completion
-const playingMessage = (url, options) => {
-    // Child process to grab video metadata
-    const vidInfo = spawn(`youtube-dl --dump-json --skip-download --cookies cookies.txt ${url}`, { shell: true, cwd: cacheDir });
+const playingMessage = async (url, options) => {
+    return new Promise((resolve) => {
+        // Child process to grab video metadata
+        const vidInfo = spawn(`youtube-dl --dump-json --skip-download --cookies cookies.txt ${url}`, { shell: true, cwd: cacheDir });
 
-    let currPlayingMessage; // Message displaying the currently playing song
-    const buildVidInfo = []; // Array to be joined into a JSON string
+        let currPlayingMessage; // Message displaying the currently playing song
+        const buildVidInfo = []; // Array to be joined into a JSON string
 
-    // Build the JSON string that contains video metadata
-    vidInfo.stdout.on('data', (data) => {
-        buildVidInfo.push(data.toString());
-    });
-
-    vidInfo.on('close', async () => {
-        let infojson;
-        let currTime = 0; // Durations in seconds that we have progressed through the current song
-        const barLength = 59; // Length in characters of the progress bar to be drawn
-        let songDuration; // Total duration in seconds of the current song
-        let filledProgressBlocks = 0; // The number of blocks we have filled in our progress bar so far
-
-        try { // Attempt to fetch metadata for the song from youtube
-            infojson = JSON.parse(buildVidInfo.join(''));
-            songDuration = parseInt(infojson.duration);
-        }
-        catch {
-            // Could not fetch metadata for video, likely because the original video has already been delisted from youtube
-            return;
-        }
-
-        // Update the bot's discord status
-        client.user.setActivity(infojson.title);
-
-        // Send a Now Playing message to the channel
-        const replyEmbed = new MessageEmbed()
-            .setTitle(infojson.title)
-            .setAuthor({ name:'Now Playing:' })
-            .setURL(url)
-            .setThumbnail(infojson.thumbnail)
-            .setColor('C4820F')
-            .setDescription('`' + createProgressBar(currTime, parseInt(infojson.duration), 59) + '`');
-
-        // Bind currPlayingMessage variable to the message we just sent
-        await client.channels.cache.get(botChannel).send({ embeds: [replyEmbed] }).then((message) => {
-            currPlayingMessage = message;
+        // Build the JSON string that contains video metadata
+        vidInfo.stdout.on('data', (data) => {
+            buildVidInfo.push(data.toString());
         });
 
-        // Continuously update the progress bar in currPlayingMessage
-        // This loop will run approximately once every quarter-second
-        while (!skipflag && (songDuration - currTime) > 0) {
-            if (sharedPlayer.state.status == AudioPlayerStatus.Playing) {
-                // We only redraw the progress bar if there will be a visible change
-                const currProgressBlocks = Math.floor((currTime / songDuration) * barLength);
+        vidInfo.on('close', async () => {
+            let infojson;
+            let currTime = 0; // Durations in seconds that we have progressed through the current song
+            const barLength = 59; // Length in characters of the progress bar to be drawn
+            let songDuration; // Total duration in seconds of the current song
+            let filledProgressBlocks = 0; // The number of blocks we have filled in our progress bar so far
 
-                if (currProgressBlocks > filledProgressBlocks) {
-                    const updatedProgressBar = '`' + createProgressBar(currTime, songDuration, barLength) + '`';
-                    replyEmbed.setDescription(updatedProgressBar);
-                    filledProgressBlocks = currProgressBlocks;
-
-                    // Edit the currPlayingMessage with new progress bar
-                    // Catch the error that arises when the currPlayingMessage has been manually deleted
-                    currPlayingMessage.edit({ embeds: [replyEmbed] }).catch(() => {
-                        // Message has been deleted, do nothing and exit early
-                        return;
-                    });
-                }
-                currTime += 0.25;
+            try { // Attempt to fetch metadata for the song from youtube
+                infojson = JSON.parse(buildVidInfo.join(''));
+                songDuration = parseInt(infojson.duration);
             }
-            await sleep(250);
-        }
+            catch {
+                // Could not fetch metadata for video, likely because the original video has already been delisted from youtube
+                return;
+            }
 
-        if (skipflag) { // If the current song was manually skipped
-            replyEmbed.setDescription('Song skipped.');
-        }
-        else {
-            replyEmbed.setDescription('Playback completed.');
-        }
+            // Update the bot's discord status
+            client.user.setActivity(infojson.title);
 
-        // Mark the song as completed playback successfully
-        replyEmbed.setAuthor({ name:'Finished playing:' });
-        currPlayingMessage.edit({ embeds: [replyEmbed] }).catch(() => {
-            // Message has been deleted, do nothing and exit
-            return;
-        });
+            // Send a Now Playing message to the channel
+            const replyEmbed = new MessageEmbed()
+                .setTitle(infojson.title)
+                .setAuthor({ name:'Now Playing:' })
+                .setURL(url)
+                .setThumbnail(infojson.thumbnail)
+                .setColor('C4820F')
+                .setDescription('`' + createProgressBar(currTime, parseInt(infojson.duration), 59) + '`');
 
-        // If the Now Playing message was marked for auto-deletion, delete it now
-        if (options && options.delete) {
-            currPlayingMessage.delete().catch(() => {
+            // Bind currPlayingMessage variable to the message we just sent
+            await client.channels.cache.get(botChannel).send({ embeds: [replyEmbed] }).then((message) => {
+                currPlayingMessage = message;
+                resolve(currPlayingMessage);
+            });
+
+            // Continuously update the progress bar in currPlayingMessage
+            // This loop will run approximately once every quarter-second
+            while (!skipflag && (songDuration - currTime) > 0) {
+                if (sharedPlayer.state.status == AudioPlayerStatus.Playing) {
+                    // We only redraw the progress bar if there will be a visible change
+                    const currProgressBlocks = Math.floor((currTime / songDuration) * barLength);
+
+                    if (currProgressBlocks > filledProgressBlocks) {
+                        const updatedProgressBar = '`' + createProgressBar(currTime, songDuration, barLength) + '`';
+                        replyEmbed.setDescription(updatedProgressBar);
+                        filledProgressBlocks = currProgressBlocks;
+
+                        // Edit the currPlayingMessage with new progress bar
+                        // Catch the error that arises when the currPlayingMessage has been manually deleted
+                        currPlayingMessage.edit({ embeds: [replyEmbed] }).catch(() => {
+                            // Message has been deleted, do nothing and exit early
+                            return;
+                        });
+                    }
+                    currTime += 0.25;
+                }
+                await sleep(250);
+            }
+
+            if (skipflag) { // If the current song was manually skipped
+                replyEmbed.setDescription('Song skipped.');
+            }
+            else {
+                replyEmbed.setDescription('Playback completed.');
+            }
+
+            // Mark the song as completed playback successfully
+            replyEmbed.setAuthor({ name:'Finished playing:' });
+            currPlayingMessage.edit({ embeds: [replyEmbed] }).catch(() => {
                 // Message has been deleted, do nothing and exit
                 return;
             });
-        }
-    });
 
-    return currPlayingMessage;
+            // If the Now Playing message was marked for auto-deletion, delete it now
+            if (options && options.delete) {
+                currPlayingMessage.delete().catch(() => {
+                    // Message has been deleted, do nothing and exit
+                    return;
+                });
+            }
+        });
+    });
 };
 
 // Begin playback of song from Youtube URL
@@ -179,14 +180,15 @@ const playyoutube = (url, options) => {
         if (code == 1 && !skipflag) { // A manual skip was not initiated. Treat it as an HTTP Error and retry
             console.log('Process closed unexpectedly. Retrying...');
 
-            while (!currPlayingMessage) {
-                await sleep(250);
-            }
-            await currPlayingMessage.delete().catch(() => {
-                console.log('Message already deleted.');
+            await currPlayingMessage.then(async (mes) => {
+                if (mes) {
+                    await mes.delete().catch((err) => {
+                        console.log(err);
+                        console.log('Message already deleted.');
+                    });
+                    console.log('Now Playing message deleted.');
+                }
             });
-
-            console.log('Now Playing message deleted.');
         }
         // A manual skip was initiated. Popping the song off the queue is handled by the
         // sharedPlayer.on('pop') event
