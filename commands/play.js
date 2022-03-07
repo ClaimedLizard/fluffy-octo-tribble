@@ -20,13 +20,17 @@ let songNames = fs.readdirSync(songDir).filter((file) => { return file.endsWith(
 
 const requestqueue = []; // Queue for individual song requests. Will take precedence over playlistqueue
 let playlistqueue = []; // Queue for whole playlist requsts. Will take precedence over cached songs
-// let playlistTitle; // The name of the currently playing playlist
 let currRequest = ''; // Is the url string of the song request currently playing.
 
 let index = 0; // Index of the current song playing within the locally cached default playlist
 let requestflag = false; // Will be true if the current song playing is a request
 let skipflag = false; // Will be true if user requested to skip the current song
 
+/**
+    * Utility function to shuffle an array
+    *
+    * @param {Array} array The array to be shuffled
+*/
 const shuffleArray = (array) => {
     for (let i = array.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
@@ -36,17 +40,34 @@ const shuffleArray = (array) => {
     }
 };
 
+/**
+    * Utility function to sleep for a given amount of time
+    *
+    * @param {number} milliseconds Number of milliseconds to sleep
+*/
 const sleep = async (milliseconds) => {
     return new Promise(resolve => setTimeout(resolve, milliseconds));
 };
 
-// Probe the audio stream to determine if it is Opus or not, and return the appropriate AudioResource
+/**
+    * Probe the audio stream to determine if it is Opus or not, and return the appropriate AudioResource
+    *
+    * @param {readableStream} readableStream The stream to create an audio resource from
+    * @returns {AudioResource}
+*/
 const probeAndCreateResource = async (readableStream) => {
     const { stream, type } = await demuxProbe(readableStream);
     return createAudioResource(stream, { inputType: type });
 };
 
-// Function to create a progress bar string out of characters
+/**
+    * Function to create a progress bar string out of characters
+    *
+    * @param {number} curr The current amount of the total that we have progressed
+    * @param {number} total The total amount that the entire progress bar represents
+    * @param {number} length The length of the progress bar string in characters
+    * @returns {string} The progress bar string
+*/
 const createProgressBar = (curr, total, length) => {
     const out = [];
     const pointerIndex = Math.floor((curr / total) * length);
@@ -61,9 +82,14 @@ const createProgressBar = (curr, total, length) => {
     return out.join('');
 };
 
-// Method to grab video metadata from provided url and post it as a Now Playing message
-// Returns the Now Playing message object.
-// Pass in { delete:true } into options to auto delete currPlayingMessage upon completion
+/**
+    * A function to grab video metadata from the provded url and post it as a Now Playing message
+    * Pass in { delete:true } as options to auto-delete the Now Playing message upon playback completion
+    *
+    * @param {string} url The youtube url of the video to grab metadata from
+    * @param {object} options Some optional flags
+    * @returns {Promise<Message>} Promise that resolves into the message object that was sent, or null upon failure to send message
+*/
 const playingMessage = async (url, options) => {
     return new Promise((resolve) => {
         // Child process to grab video metadata
@@ -307,7 +333,7 @@ module.exports = {
 
     /**
     * Setter to change the default playback playlist
-    * @param {string} listname = Name of the playlist to set to
+    * @param {string} listname Name of the playlist to set to
     */
     set playlist(listname) {
         songDir = path.join(cacheDir, listname);
@@ -322,7 +348,7 @@ module.exports = {
 
     /**
     * Setter to change the channel that the bot posts Now Playing messages to
-    * @param {string} channelId = The id of the new channel the bot will post to
+    * @param {string} channelId The id of the new channel the bot will post to
     */
     set botChannel(channelId) {
         botChannel = channelId;
