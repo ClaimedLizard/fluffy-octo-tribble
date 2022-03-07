@@ -305,7 +305,10 @@ module.exports = {
                 .setRequired(true)),
     player: sharedPlayer,
 
-    // Method to change the default playback playlist
+    /**
+    * Setter to change the default playback playlist
+    * @param {string} listname = Name of the playlist to set to
+    */
     set playlist(listname) {
         songDir = path.join(cacheDir, listname);
         songNames = fs.readdirSync(path.join(cacheDir, listname)).filter((file) => { return file.endsWith('.opus') || file.endsWith('.webm'); });
@@ -317,7 +320,10 @@ module.exports = {
         }
     },
 
-    // Method to change the channel the bot is posting too
+    /**
+    * Setter to change the channel that the bot posts Now Playing messages to
+    * @param {string} channelId = The id of the new channel the bot will post to
+    */
     set botChannel(channelId) {
         botChannel = channelId;
     },
