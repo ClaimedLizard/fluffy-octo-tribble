@@ -7,10 +7,15 @@ const { client } = require('../client.js');
 const { MessageEmbed } = require('discord.js');
 const https = require('https');
 
+/** @type {AudioPlayer} */
 const sharedPlayer = createAudioPlayer();
 
-// The bot will post all activity messages in this channel
-// This is reset to null upon disconnect
+/**
+    * The bot will post all activity messages to the text channel with this id
+    * This will be null if the bot is not currently connected to a voice channel
+    * Will be reset to null upon disconnect
+    * @type {string}
+*/
 let botChannel = null;
 
 // Initialize the list of cached songs to play
@@ -18,18 +23,24 @@ const cacheDir = path.resolve('./cache');
 let songDir = path.join(cacheDir, 'Chinois');
 let songNames = fs.readdirSync(songDir).filter((file) => { return file.endsWith('.opus') || file.endsWith('.webm'); });
 
-const requestqueue = []; // Queue for individual song requests. Will take precedence over playlistqueue
-let playlistqueue = []; // Queue for whole playlist requsts. Will take precedence over cached songs
-let currRequest = ''; // Is the url string of the song request currently playing.
+/** @type {string[]} Queue for individual song requests populated with youtube urls. Will take precedence over playlistqueue */
+const requestqueue = [];
+/** @type {string[]} Queue for whole playlist requsts populated with youtube urls. Will take precedence over cached songs */
+let playlistqueue = [];
+/** @type {string} The url string of the song request currently playing */
+let currRequest = '';
 
-let index = 0; // Index of the current song playing within the locally cached default playlist
-let requestflag = false; // Will be true if the current song playing is a request
-let skipflag = false; // Will be true if user requested to skip the current song
+/** @type {number} Index of the current song playing within the locally cached default playlist */
+let index = 0;
+/** @type {boolean} Flag will be true if the current song playing is a request */
+let requestflag = false;
+/** @type {boolean} Flag will be true if user requested to skip the current song */
+let skipflag = false;
 
 /**
     * Utility function to shuffle an array
     *
-    * @param {Array} array The array to be shuffled
+    * @param {any[]} array The array to be shuffled
 */
 const shuffleArray = (array) => {
     for (let i = array.length - 1; i > 0; i--) {
@@ -187,8 +198,13 @@ const playingMessage = async (url, options) => {
     });
 };
 
-// Begin playback of song from Youtube URL
-// options = { inputType: StreamType.Artibtrary } will pipe audio through ffmpeg
+/**
+    * Function to begin playback of song from Youtube URL
+    * Passing in options = { inputType: StreamType.Artibtrary } will pipe audio through ffmpeg
+    *
+    * @param {string} url The youtube url whose audio will be played
+    * @param {Object} options Object containing optional flags
+*/
 const playyoutube = (url, options) => {
     // Send the Now Playing message
     const currPlayingMessage = playingMessage(url, options);
@@ -238,7 +254,9 @@ const playyoutube = (url, options) => {
     }
 };
 
-// Play the next song in the cache playlist, and update the index
+/**
+    * Function to play the next song in the cache playlist, and update the index
+*/
 const playcache = async () => {
 
     // Send an auto-deleting Now Playing message to the chat
