@@ -1,7 +1,9 @@
 const { SlashCommandBuilder } = require ('@discordjs/builders');
 const { client, isLegal } = require('../client.js');
 const Eliza = require('../eliza-as-promised');
-let eliza; // The current instance of Eliza
+/** @type {Eliza} The current instance of Eliza */
+let eliza;
+/** @type {string[]} Word bank for use in creating agreement messages */
 const goodWords = ['I agree', 'You\'re the best', 'Wise words', 'You\'re so smart', 'Nice', 'Absolutely', 'Definitely', 'Exactly', 'You\'re right', 'I couldn\'t agree more', 'That\'s true', 'That\'s for sure'];
 
 // If the doctor is in, then reply with eliza responses
