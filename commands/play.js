@@ -372,6 +372,9 @@ module.exports = {
         botChannel = channelId;
     },
 
+    /**
+        * Clear the queue of user requested playlists
+    */
     clearPlaylistQueue: () => {
         playlistqueue = [];
     },
