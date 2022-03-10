@@ -10,8 +10,17 @@ const goodWords = ['I agree', 'You\'re the best', 'Wise words', 'You\'re so smar
 // If false, then reply with agreement messages
 let theDoctorIsIn = false;
 
+/**
+    * Utility function to sleep for a given amount of time
+    *
+    * @param {number} milliseconds Number of milliseconds to sleep
+*/
+const sleep = async (milliseconds) => {
+    return new Promise(resolve => setTimeout(resolve, milliseconds));
+};
+
 // Robocop
-client.on('messageCreate', (message) => {
+client.on('messageCreate', async (message) => {
     // Express solidarity with other bots
     if (message.author.bot && message.author.id != message.guild.me.id) {
         message.react('🤖');
@@ -35,13 +44,17 @@ client.on('messageCreate', (message) => {
     if (isLegal(message.member)) {
         const index = Math.floor(Math.random() * goodWords.length);
         // Send the message, and then delete it after 5 seconds
-        message.channel.send(goodWords[index]).then((mes) => {
-            setTimeout(() => {
-                mes.delete().catch((err) => {
-                    console.log('Could not delete agreement message');
-                    console.log(err);
-                });
-            }, 5000);
+        await message.channel.sendTyping().then(async () => {
+            await sleep(1500);
+            let agreementMessage;
+            await message.reply(goodWords[index]).then((mes) => {
+                agreementMessage = mes;
+            });
+            await sleep(5000);
+            agreementMessage.delete().catch((err) => {
+                console.log('Could not delete agreement message');
+                console.log(err);
+            });
         });
         return;
     }
