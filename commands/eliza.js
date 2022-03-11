@@ -1,6 +1,7 @@
-const { SlashCommandBuilder } = require ('@discordjs/builders');
+const { SlashCommandBuilder } = require('@discordjs/builders');
 const { client, isLegal } = require('../client.js');
 const Eliza = require('../eliza-as-promised');
+
 /** @type {Eliza} The current instance of Eliza */
 let eliza;
 /** @type {string[]} Word bank for use in creating agreement messages */
@@ -45,7 +46,7 @@ client.on('messageCreate', async (message) => {
         const index = Math.floor(Math.random() * goodWords.length);
         // Send the message, and then delete it after 5 seconds
         await message.channel.sendTyping().then(async () => {
-            await sleep(1500);
+            await sleep(2500);
             let agreementMessage;
             await message.reply(goodWords[index]).then((mes) => {
                 agreementMessage = mes;
