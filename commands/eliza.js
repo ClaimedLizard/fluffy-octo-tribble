@@ -7,8 +7,9 @@ let eliza;
 /** @type {string[]} Word bank for use in creating agreement messages */
 const goodWords = ['I agree', 'You\'re the best', 'Wise words', 'You\'re so smart', 'Nice', 'Absolutely', 'Definitely', 'Exactly', 'You\'re right', 'I couldn\'t agree more', 'That\'s true', 'That\'s for sure'];
 
-// If the doctor is in, then reply with eliza responses
-// If false, then reply with agreement messages
+/** @type {boolean} If the doctor is in, then reply with eliza responses
+    * Otherwise, reply with agreement messages
+*/
 let theDoctorIsIn = false;
 
 /**
@@ -31,12 +32,18 @@ client.on('messageCreate', async (message) => {
         const statement = message.content;
         eliza.getResponse(statement).then(async (response) => {
             if (response.reply) {
-                message.channel.send(response.reply);
+                await message.channel.sendTyping().then(async () => {
+                    await sleep(2500);
+                    message.channel.send(response.reply);
+                });
             }
             if (response.final) {
-                message.channel.send(response.final);
                 // Turn the doctor off
                 theDoctorIsIn = false;
+                await message.channel.sendTyping().then(async () => {
+                    await sleep(2500);
+                    message.channel.send(response.final);
+                });
             }
         });
         return;
