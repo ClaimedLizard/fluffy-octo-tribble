@@ -1,7 +1,6 @@
 // Require the necessary discord.js classes
 const fs = require('fs');
 const { Collection } = require('discord.js');
-const goodWords = ['I agree', 'You\'re the best', 'Wise words', 'You\'re so smart', 'Nice', 'Absolutely', 'Definitely', 'Exactly', 'You\'re right', 'I couldn\'t agree more', 'That\'s true', 'That\'s for sure'];
 
 // Create a new client instance and login to discord
 // Import method that determines if user is authorized to command this bot
