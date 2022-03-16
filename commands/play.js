@@ -478,7 +478,8 @@ module.exports = {
                                 songId = JSON.parse(jsonArray[i]).id;
                             }
                             catch { // Exit early on attempt to parse malformed JSON
-                                await interaction.reply('`Attempted to parse malformed JSON. Try again.`');
+                                // await interaction.reply('`Attempted to parse malformed JSON. Try again.`');
+                                console.log('Attempted to parse malformed JSON');
                                 return;
                             }
                             playlistqueue.push(`https://www.youtube.com/watch?v=${songId}`);
