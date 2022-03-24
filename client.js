@@ -58,7 +58,11 @@ const saveGuildToChannel = () => {
 
 // Define method that determines if a user is authorized to command this bot
 const isLegal = (guildMember) => {
-    return guildMember && guildMember.roles.cache.has(authorizedRoleId) || guildMember.id == masterId;
+    // Edge cases
+    if (guildMember == null || guildMember.roles == null) {
+        return false;
+    }
+    return guildMember.roles.cache.has(authorizedRoleId) || guildMember.id == masterId;
 };
 
 module.exports = {
