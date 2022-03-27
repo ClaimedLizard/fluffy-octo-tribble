@@ -19,8 +19,8 @@ module.exports = {
             connection.destroy();
             play.player.emit('skip'); // Mark the currently playing song as skipped
             interaction.client.user.setActivity('');
-            play.botChannel = null;
             await interaction.reply({ content: ':wave:' });
+            play.botChannel = null;
         }
     },
 };
