@@ -55,14 +55,19 @@ client.on('messageCreate', async (message) => {
         await message.channel.sendTyping().then(async () => {
             await sleep(2500);
             let agreementMessage;
-            await message.reply(goodWords[index]).then((mes) => {
+            await message.reply(goodWords[index]).catch(() => {
+                // Do nothing upon failing to reply
+                return;
+            }).then((mes) => {
                 agreementMessage = mes;
             });
             await sleep(5000);
-            agreementMessage.delete().catch((err) => {
-                console.log('Could not delete agreement message');
-                console.log(err);
-            });
+            if (agreementMessage) {
+                agreementMessage.delete().catch((err) => {
+                    console.log('Could not delete agreement message');
+                    console.log(err);
+                });
+            }
         });
         return;
     }
